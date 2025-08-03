@@ -1,16 +1,22 @@
 from fastapi import FastAPI
 from nonebot import get_driver, on_command
 from nonebot.adapters.qq import Adapter as QQAdapter, MessageEvent
+from nonebot.drivers import HTTPClientMixin
 from mcstatus import JavaServer
 import nonebot
 
-# 初始化 FastAPI 应用（Vercel 必须）
-app = FastAPI()
+# 初始化 NoneBot - 使用正确的驱动配置
+nonebot.init(
+    _env_file=".env",
+    driver="nonebot.drivers.fastapi+nonebot.drivers.httpx"  # 使用完整驱动路径
+)
 
-# 初始化 NoneBot
-nonebot.init()
+# 获取驱动并注册适配器
 driver = get_driver()
 driver.register_adapter(QQAdapter)
+
+# 创建 FastAPI 应用实例
+app = FastAPI()
 
 # 创建命令处理器
 mc_cmd = on_command("mc", aliases={"/mc"})
@@ -26,15 +32,15 @@ async def handle_mc(event: MessageEvent):
         msg = f"查询失败: {str(e)}"
     await mc_cmd.send(msg)
 
-# 将 NoneBot 挂载到 FastAPI
+# 挂载 NoneBot 到 FastAPI
 @app.on_event("startup")
 async def startup():
     await driver.start()
 
-# Vercel 必须导出的 handler
+# Vercel 必须的导出
 handler = nonebot.get_asgi()
 
-# 兼容 Vercel 和本地运行
+# 本地运行支持
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
