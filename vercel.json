@@ -7,7 +7,7 @@
       "config": {
         "maxLambdaSize": "15mb",
         "runtime": "python3.9",
-        "includeFiles": ["*.env"]
+        "supportsResponseStreaming": true
       }
     }
   ],
@@ -15,12 +15,7 @@
     {
       "src": "/qq/receive",
       "dest": "bot.py",
-      "methods": ["POST"]
-    },
-    {
-      "src": "/(.*)",
-      "dest": "bot.py",
-      "methods": ["GET"]
+      "methods": ["GET", "POST", "WEBSOCKET"]
     }
   ]
 }
