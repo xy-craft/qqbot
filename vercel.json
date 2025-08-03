@@ -2,24 +2,24 @@
   "version": 2,
   "builds": [
     {
-      "src": "app.py",
+      "src": "bot.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb",
-        "runtime": "python3.9"
+        "maxLambdaSize": "20mb",
+        "runtime": "python3.9",
+        "includeFiles": [".env"]
       }
     }
   ],
   "routes": [
     {
       "src": "/qq/receive",
-      "dest": "app.py",
-      "methods": ["POST"]
-    },
-    {
-      "src": "/",
-      "dest": "app.py",
-      "methods": ["GET"]
+      "dest": "bot.py",
+      "methods": ["POST"],
+      "headers": {
+        "X-Signature-Ed25519": ".*",
+        "X-Signature-Timestamp": ".*"
+      }
     }
   ]
 }

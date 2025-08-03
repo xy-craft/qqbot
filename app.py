@@ -1,51 +1,46 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from nonebot import get_driver, on_command
 from nonebot.adapters.qq import Adapter as QQAdapter, MessageEvent
-from nonebot.adapters.qq.bot import Bot
+from nonebot.drivers import HTTPClientMixin
 from mcstatus import JavaServer
 import nonebot
-import uvicorn
-import os
 
-# 创建 FastAPI 应用（Vercel 必须）
-app = FastAPI()
-
-# 初始化 NoneBot - 使用可靠的驱动组合
+# ---------- 核心修复 ----------
 nonebot.init(
     _env_file=".env",
-    driver="nonebot.drivers.fastapi.Driver"
+    driver="nonebot.drivers.fastapi.Driver+nonebot.drivers.httpx.Driver"
 )
 
-# 获取驱动并注册适配器
+app = FastAPI()
 driver = get_driver()
+
+# 强制添加HTTP支持（关键修复）
+if not isinstance(driver, HTTPClientMixin):
+    driver.register_adapter(HTTPClientMixin)
+
 driver.register_adapter(QQAdapter)
 
-# 创建命令处理器
+# ---------- 业务逻辑 ----------
 mc_cmd = on_command("mc", aliases={"/mc"})
 
 @mc_cmd.handle()
-async def handle_mc(bot: Bot, event: MessageEvent):
+async def handle_mc(event: MessageEvent):
     try:
-        server = JavaServer.lookup("play.simpfun.cn:14117")
+        server = JavaServer.lookup("play.simpfun.cn:14117", timeout=5)
         status = server.status()
-        players = [player.name for player in status.players.sample or []]
-        msg = "当前在线: " + (", ".join(players) if players else "空无一人")
+        players = status.players.sample or []
+        msg = "在线: " + ", ".join(p.name for p in players) if players else "空无一人"
     except Exception as e:
-        msg = f"查询失败: {str(e)}"
-    
-    await bot.send(event, msg)
+        msg = f"查询失败: {e}"
+    await mc_cmd.send(msg)
 
-# 挂载 NoneBot 到 FastAPI
+# ---------- Vercel适配 ----------
 @app.on_event("startup")
 async def startup():
     await driver.start()
 
-# Vercel 必须的导出
-@app.post("/qq/receive")
-async def qq_receive(request: Request):
-    return await nonebot.get_asgi()(request.scope, await request.receive())
+handler = nonebot.get_asgi()
 
-# 本地运行支持
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+    import uvicorn
+    uvicorn.run("bot:app", host="0.0.0.0", port=8080, reload=True)
